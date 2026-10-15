@@ -68,7 +68,10 @@ class VadimkinDataSource(AlertDataSource):
         elif cfg_data and getattr(cfg_data, "vadimkin_dump_path", None):
             self.csv_path = Path(cfg_data.vadimkin_dump_path)
         else:
-            self.csv_path = Path("data/raw/vadimkin_official.csv")
+            default_p = Path("data/raw/vadimkin_official.csv")
+            if not default_p.exists():
+                default_p = Path(__file__).resolve().parent.parent.parent / "data/raw/vadimkin_official.csv"
+            self.csv_path = default_p
 
         # Determine download URL
         default_url = (

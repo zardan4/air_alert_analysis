@@ -389,6 +389,8 @@ class AlertsInUaDataSource(AlertDataSource):
             self.dump_path = candidate if candidate.exists() else None
         else:
             default_candidate = Path("data/raw/alerts_in_ua_dump.csv")
+            if not default_candidate.exists():
+                default_candidate = Path(__file__).resolve().parent.parent.parent / "data/raw/alerts_in_ua_dump.csv"
             self.dump_path = default_candidate if default_candidate.exists() else None
 
         # Token and API endpoints

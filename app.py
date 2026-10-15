@@ -201,31 +201,58 @@ is_vadimkin_cli = "--vadimkin" in sys.argv
 
 @st.cache_data
 def load_cached_data(mock_mode: bool = False, vadimkin_mode: bool = False):
-    """Load raw alerts, continuous grid, and features. Automatically generates data if files are absent."""
-    raw_path = Path("data/raw/alerts_raw.parquet")
-    grid_path = Path("data/processed/alerts_grid.parquet")
-    feat_path = Path("data/processed/alerts_features.parquet")
-    bench_path = Path("data/processed/benchmark_results.csv")
+    """Load raw alerts, continuous grid, and features. Automatically falls back if files are absent."""
+    raw_path = _ROOT_DIR / "data/raw/alerts_raw.parquet"
+    grid_path = _ROOT_DIR / "data/processed/alerts_grid.parquet"
+    feat_path = _ROOT_DIR / "data/processed/alerts_features.parquet"
+    bench_path = _ROOT_DIR / "data/processed/benchmark_results.csv"
+
+    if not raw_path.exists():
+        raw_path = Path("data/raw/alerts_raw.parquet")
+    if not grid_path.exists():
+        grid_path = Path("data/processed/alerts_grid.parquet")
+    if not feat_path.exists():
+        feat_path = Path("data/processed/alerts_features.parquet")
+    if not bench_path.exists():
+        bench_path = Path("data/processed/benchmark_results.csv")
 
     raw = pd.read_parquet(raw_path) if raw_path.exists() else None
     grid = pd.read_parquet(grid_path) if grid_path.exists() else None
     feat = pd.read_parquet(feat_path) if feat_path.exists() else None
     bench = pd.read_csv(bench_path) if bench_path.exists() else None
 
-    if (raw is None or grid is None) and mock_mode:
-        from src.data.mock_source import MockAlertDataSource
+    if raw is None or grid is None:
         from src.data.grid_converter import IntervalToGridConverter
-        source = MockAlertDataSource(seed=42)
-        raw = source.load_raw_alerts(start_date="2024-01-01", end_date="2024-03-31")
-        converter = IntervalToGridConverter(frequency="1h")
-        grid = converter.convert(raw_df=raw, start_date="2024-01-01", end_date="2024-03-31")
-    elif (raw is None or grid is None) and vadimkin_mode:
-        from src.data.vadimkin import VadimkinDataSource
-        from src.data.grid_converter import IntervalToGridConverter
-        source = VadimkinDataSource()
-        raw = source.load_raw_alerts(start_date="2024-01-01", end_date="2024-03-31")
-        converter = IntervalToGridConverter(frequency="1h")
-        grid = converter.convert(raw_df=raw, start_date="2024-01-01", end_date="2024-03-31")
+        if mock_mode:
+            from src.data.mock_source import MockAlertDataSource
+            source = MockAlertDataSource(seed=42)
+            raw = source.load_raw_alerts(start_date="2024-01-01", end_date="2024-03-31")
+            converter = IntervalToGridConverter(frequency="1h")
+            grid = converter.convert(raw_df=raw, start_date="2024-01-01", end_date="2024-03-31")
+        elif vadimkin_mode:
+            from src.data.vadimkin import VadimkinDataSource
+            source = VadimkinDataSource()
+            raw = source.load_raw_alerts(start_date="2024-01-01", end_date="2024-03-31")
+            converter = IntervalToGridConverter(frequency="1h")
+            grid = converter.convert(raw_df=raw, start_date="2024-01-01", end_date="2024-03-31")
+        else:
+            alerts_dump_csv = _ROOT_DIR / "data/raw/alerts_in_ua_dump.csv"
+            vadimkin_csv = _ROOT_DIR / "data/raw/vadimkin_official.csv"
+            if alerts_dump_csv.exists():
+                from src.data.alerts_in_ua import AlertsInUaDataSource
+                source = AlertsInUaDataSource(csv_path=alerts_dump_csv)
+                raw = source.load_raw_alerts()
+                grid = IntervalToGridConverter(frequency="1h").convert(raw_df=raw)
+            elif vadimkin_csv.exists():
+                from src.data.vadimkin import VadimkinDataSource
+                source = VadimkinDataSource(csv_path=vadimkin_csv)
+                raw = source.load_raw_alerts()
+                grid = IntervalToGridConverter(frequency="1h").convert(raw_df=raw)
+            else:
+                from src.data.mock_source import MockAlertDataSource
+                source = MockAlertDataSource(seed=42)
+                raw = source.load_raw_alerts(start_date="2024-01-01", end_date="2024-03-31")
+                grid = IntervalToGridConverter(frequency="1h").convert(raw_df=raw, start_date="2024-01-01", end_date="2024-03-31")
 
     return raw, grid, feat, bench
 
