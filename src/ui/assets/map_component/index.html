@@ -21,11 +21,10 @@
     width: 100%;
     max-width: 1050px;
     margin: 0 auto;
-    background: radial-gradient(circle at 50% 50%, #151e33 0%, #0b0f19 85%);
-    border: 1px solid rgba(71, 85, 105, 0.45);
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(71, 85, 105, 0.4);
     border-radius: 10px;
     padding: 12px 14px 10px 14px;
-    box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.5);
   }
 
   /* Top HUD bar */
@@ -458,15 +457,15 @@
   <div class="legend-bar">
     <div class="legend-item">
       <div class="legend-swatch" style="background: rgba(239, 68, 68, 0.85); border-color:#f87171;"></div>
-      <span>High Risk (prob &ge; 60%)</span>
+      <span>High Alert Risk (prob &ge; 60%)</span>
     </div>
     <div class="legend-item">
       <div class="legend-swatch" style="background: rgba(245, 158, 11, 0.85); border-color:#fbbf24;"></div>
-      <span>Moderate Risk (35-59%)</span>
+      <span>Moderate Alert Risk (35-59%)</span>
     </div>
     <div class="legend-item">
       <div class="legend-swatch" style="background: rgba(16, 185, 129, 0.85); border-color:#34d399;"></div>
-      <span>Low Risk (&lt;35%)</span>
+      <span>Low Alert Risk (&lt;35%)</span>
     </div>
     <div class="legend-item">
       <div class="legend-swatch" style="background: rgba(51, 65, 85, 0.6); border-color:#64748b;"></div>
@@ -483,11 +482,11 @@
   <div id="tt-status" class="tt-status-box" style="display:none;"></div>
   <div class="tt-grid">
     <div>
-      <div id="tt-prob-label" class="tt-metric-label">Forward Risk</div>
+      <div id="tt-prob-label" class="tt-metric-label">Forward Alert Risk</div>
       <div id="tt-prob" class="tt-metric-val"></div>
     </div>
     <div>
-      <div class="tt-metric-label">Risk Tier</div>
+      <div class="tt-metric-label">Alert Risk Tier</div>
       <div id="tt-tier" class="tt-metric-val"></div>
     </div>
     <div>
@@ -593,7 +592,7 @@
       ttStatus.style.display = 'none';
     }
 
-    ttProbLabel.textContent = currentHorizon + 'h Ahead Risk';
+    ttProbLabel.textContent = currentHorizon + 'h Ahead Alert Risk';
     ttProb.textContent = info.prob_pct || 'N/A';
     ttTier.textContent = info.risk_tier || 'N/A';
     ttThreat.textContent = (info.yellow_pct || 'N/A') + ' / ' + (info.red_pct || 'N/A');
@@ -652,8 +651,8 @@
         name_en: r['Oblast (EN)'] || slug,
         name_uk: r['Область (UK)'] || '',
         prob: prob,
-        prob_pct: r[currentHorizon + 'h Ahead Risk'] || (Math.round(prob * 100) + '%'),
-        risk_tier: r['Risk Tier'] || (prob >= 0.6 ? 'High' : (prob >= 0.35 ? 'Moderate' : 'Low')),
+        prob_pct: r[currentHorizon + 'h Ahead Alert Risk'] || r[currentHorizon + 'h Ahead Risk'] || (Math.round(prob * 100) + '%'),
+        risk_tier: r['Alert Risk Tier'] || r['Risk Tier'] || (prob >= 0.6 ? 'High' : (prob >= 0.35 ? 'Moderate' : 'Low')),
         current_status: r['Current Status'] || '',
         yellow_pct: r['Yellow (Drones) %'] || 'N/A',
         red_pct: r['Red (Missiles) %'] || 'N/A',

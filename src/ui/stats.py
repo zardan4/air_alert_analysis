@@ -517,17 +517,17 @@ def get_safe_window_recommendation(
         )
     elif safety_score >= 60.0:
         verdict = "MODERATE"
-        verdict_label = "MODERATE RISK WINDOW (CAUTION)"
+        verdict_label = "MODERATE ALERT RISK WINDOW (CAUTION)"
         recommendation = (
-            f"Acceptable window with moderate siren risk ({danger_prob:.0%} chance of alerts). "
+            f"Acceptable window with moderate alert risk ({danger_prob:.0%} chance of sirens). "
             f"Meetings can proceed, but verify proximity to certified bomb shelters or safe interior rooms."
         )
     else:
         verdict = "DANGER"
-        verdict_label = "HIGH RISK WINDOW (DANGER)"
+        verdict_label = "HIGH ALERT RISK WINDOW (DANGER)"
         recommendation = (
-            f"Elevated danger window on {day_name}! Coincides with frequent wartime strike sorties or drone loitering "
-            f"({danger_prob:.0%} historical siren rate). Consider rescheduling to around {safest_hour:02d}:00."
+            f"Elevated alert risk window on {day_name}! Coincides with frequent wartime strike sorties or drone loitering "
+            f"({danger_prob:.0%} historical alert rate). Consider rescheduling to around {safest_hour:02d}:00."
         )
 
     return {

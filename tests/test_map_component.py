@@ -28,7 +28,9 @@ def test_generate_interactive_ukraine_svg_html_structure():
             "Oblast (EN)": "Kharkiv Oblast",
             "Область (UK)": "Харківська область",
             "Current Status": "SIREN ACTIVE",
+            "1h Ahead Alert Risk": "68%",
             "1h Ahead Risk": "68%",
+            "Alert Risk Tier": "High",
             "Risk Tier": "High",
             "Yellow (Drones) %": "85%",
             "Red (Missiles) %": "15%",
@@ -42,7 +44,9 @@ def test_generate_interactive_ukraine_svg_html_structure():
             "Oblast (EN)": "Lviv Oblast",
             "Область (UK)": "Львівська область",
             "Current Status": "CLEAR",
+            "1h Ahead Alert Risk": "15%",
             "1h Ahead Risk": "15%",
+            "Alert Risk Tier": "Low",
             "Risk Tier": "Low",
             "Yellow (Drones) %": "88%",
             "Red (Missiles) %": "12%",
@@ -62,6 +66,7 @@ def test_generate_interactive_ukraine_svg_html_structure():
     assert "path-kyiv_city" in html
     assert "onOblastClick" in html
     assert "floating-tooltip" in html
+    assert "Alert Risk" in html
 
 
 def test_generate_interactive_ukraine_svg_html_vadimkin_mode():
@@ -71,7 +76,9 @@ def test_generate_interactive_ukraine_svg_html_vadimkin_mode():
             "region_slug": "odesa",
             "Oblast (EN)": "Odesa Oblast",
             "Область (UK)": "Одеська область",
+            "1h Ahead Alert Risk": "42%",
             "1h Ahead Risk": "42%",
+            "Alert Risk Tier": "Moderate",
             "Risk Tier": "Moderate",
             "Yellow (Drones) %": "86%",
             "Red (Missiles) %": "14%",

@@ -723,7 +723,7 @@ else:
     st.divider()
 
     # National Heatmap
-    st.subheader("📅 Nationwide 7×24 Alert Density Heatmap")
+    st.subheader("Nationwide Alert Density Heatmap")
     st.markdown(f"Average alert probability across all regions of Ukraine from **{sel_start_date}** to **{sel_end_date}**:")
     st.dataframe(
         nat_heatmap.style.background_gradient(cmap="YlOrRd", vmin=0.0, vmax=1.0).format("{:.0%}"),
