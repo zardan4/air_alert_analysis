@@ -1,0 +1,46 @@
+# Core Project Configuration for Air Raid Alert Forecasting
+
+project:
+  name: "ukraine-alert-forecast"
+  version: "0.1.0"
+  timezone: "Europe/Kyiv"
+
+grid:
+  frequency: "1h"            # Default temporal resolution (e.g., '1h', '30min', '15min')
+  min_alert_overlap_sec: 60  # Minimum seconds of active alert within a slot to flag alert_active=1
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  regions_config_path: "config/regions.yaml"
+  default_source: "alerts_in_ua"  # Default ingestion source: 'alerts_in_ua', 'vadimkin', or 'mock'
+  alerts_in_ua_dump_path: "data/raw/alerts_in_ua_dump.csv"
+  vadimkin_dump_path: "data/raw/vadimkin_official.csv"
+
+alerts_in_ua:
+  api_base_url: "https://api.alerts.in.ua/v1"
+  token_env_var: "ALERTS_IN_UA_TOKEN"
+  api_token: ""               # Optional: alerts.in.ua API token (overridden by env var)
+  timeout_sec: 10
+  fallback_to_dump: true      # Fall back to local dump if API request fails
+  fallback_to_mock: true      # Fall back to synthetic mock data if dump is also missing
+
+vadimkin:
+  url_uk: "https://raw.githubusercontent.com/Vadimkin/ukrainian-air-raid-sirens-dataset/main/datasets/official_data_uk.csv"
+  url_en: "https://raw.githubusercontent.com/Vadimkin/ukrainian-air-raid-sirens-dataset/main/datasets/official_data_en.csv"
+  default_language: "uk"
+  timeout_sec: 15
+  fallback_to_mock: true
+
+
+mock_generator:
+  seed: 42
+  start_date: "2022-02-24T00:00:00Z"
+  end_date: "2026-10-15T23:59:59Z"
+  base_daily_rate: 3.5       # Average alert events per day per high-activity region
+  night_multiplier: 2.2      # Escalation factor during night hours (23:00 - 06:00)
+
+backtesting:
+  horizons_hours: [1, 2, 3]
+  test_window_days: 60       # Dedicated recent chronological test period
+  embargo_hours: 3           # Purge buffer between train/validation/test to prevent label leakage

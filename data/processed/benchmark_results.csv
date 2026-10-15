@@ -1,0 +1,13 @@
+model_name,target_name,horizon_hours,region_slug,roc_auc,pr_auc,brier_score,log_loss,precision,recall,f1_score,threshold,n_samples,n_positive,prevalence
+Persistence,target_active_1h,1,,0.7577,0.5937,0.2124,7.3355,0.673,0.6725,0.6728,0.01,8400,2727,0.3246
+Climatology,target_active_1h,1,,0.6642,0.4619,0.204,0.5948,0.413,0.7734,0.5385,0.2661,8400,2727,0.3246
+RollingRate7d,target_active_1h,1,,0.6511,0.4426,0.2065,0.6005,0.4099,0.762,0.533,0.2809,8400,2727,0.3246
+SpatialInflow,target_active_1h,1,,0.5,0.3325,0.2194,0.6307,0.3246,1.0,0.4902,0.01,8400,2727,0.3246
+Persistence,target_active_2h,2,,0.7064,0.6455,0.2732,9.4366,0.7424,0.5595,0.6381,0.01,8400,3616,0.4305
+Climatology,target_active_2h,2,,0.6814,0.5949,0.2281,0.6487,0.5177,0.8261,0.6365,0.404,8400,3616,0.4305
+RollingRate7d,target_active_2h,2,,0.6622,0.5661,0.2371,0.6703,0.5148,0.8153,0.6311,0.2415,8400,3616,0.4305
+SpatialInflow,target_active_2h,2,,0.5,0.4372,0.2593,0.7147,0.4305,1.0,0.6019,0.01,8400,3616,0.4305
+Persistence,target_active_3h,3,,0.6799,0.6925,0.325,11.2252,0.7908,0.4994,0.6122,0.01,8400,4315,0.5137
+Climatology,target_active_3h,3,,0.6981,0.6893,0.2364,0.6728,0.6098,0.8239,0.7008,0.5369,8400,4315,0.5137
+RollingRate7d,target_active_3h,3,,0.6738,0.6572,0.2626,0.7288,0.59,0.8482,0.6959,0.2168,8400,4315,0.5137
+SpatialInflow,target_active_3h,3,,0.5,0.5217,0.2907,0.7807,0.5137,1.0,0.6787,0.01,8400,4315,0.5137
