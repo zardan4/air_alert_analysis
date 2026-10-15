@@ -490,6 +490,14 @@
       <div id="tt-tier" class="tt-metric-val"></div>
     </div>
     <div>
+      <div class="tt-metric-label">Total Alert Time</div>
+      <div id="tt-total-hours" class="tt-metric-val"></div>
+    </div>
+    <div>
+      <div class="tt-metric-label">Mean Alert Time</div>
+      <div id="tt-mean-time" class="tt-metric-val"></div>
+    </div>
+    <div>
       <div class="tt-metric-label">Threat Ratio (Drones / Missiles)</div>
       <div id="tt-threat" class="tt-metric-val"></div>
     </div>
@@ -523,6 +531,8 @@
   const ttProbLabel = document.getElementById('tt-prob-label');
   const ttProb = document.getElementById('tt-prob');
   const ttTier = document.getElementById('tt-tier');
+  const ttTotalHours = document.getElementById('tt-total-hours');
+  const ttMeanTime = document.getElementById('tt-mean-time');
   const ttThreat = document.getElementById('tt-threat');
   const ttDuration = document.getElementById('tt-duration');
   const ttShort = document.getElementById('tt-short');
@@ -570,6 +580,8 @@
       ttStatus.style.display = 'none';
       ttProb.textContent = 'N/A';
       ttTier.textContent = 'Occupied';
+      if (ttTotalHours) ttTotalHours.textContent = 'N/A';
+      if (ttMeanTime) ttMeanTime.textContent = 'N/A';
       ttThreat.textContent = 'N/A';
       ttDuration.textContent = 'N/A';
       ttShort.textContent = 'N/A';
@@ -595,6 +607,8 @@
     ttProbLabel.textContent = currentHorizon + 'h Ahead Alert Risk';
     ttProb.textContent = info.prob_pct || 'N/A';
     ttTier.textContent = info.risk_tier || 'N/A';
+    if (ttTotalHours) ttTotalHours.textContent = info.total_hours || 'N/A';
+    if (ttMeanTime) ttMeanTime.textContent = info.mean_time || 'N/A';
     ttThreat.textContent = (info.yellow_pct || 'N/A') + ' / ' + (info.red_pct || 'N/A');
     ttDuration.textContent = info.duration || 'N/A';
     ttShort.textContent = info.short_pct || 'N/A';
@@ -653,6 +667,8 @@
         prob: prob,
         prob_pct: r[currentHorizon + 'h Ahead Alert Risk'] || r[currentHorizon + 'h Ahead Risk'] || (Math.round(prob * 100) + '%'),
         risk_tier: r['Alert Risk Tier'] || r['Risk Tier'] || (prob >= 0.6 ? 'High' : (prob >= 0.35 ? 'Moderate' : 'Low')),
+        total_hours: r['Total Alert Hours Formatted'] || (r['Total Alert Hours'] !== undefined ? (r['Total Alert Hours'] + ' hrs') : 'N/A'),
+        mean_time: r['Average Alert Time'] || r['Mean Alert Time'] || 'N/A',
         current_status: r['Current Status'] || '',
         yellow_pct: r['Yellow (Drones) %'] || 'N/A',
         red_pct: r['Red (Missiles) %'] || 'N/A',

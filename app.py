@@ -16,6 +16,11 @@ from pathlib import Path
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
+# Ensure repository root is on sys.path for cloud deployment
+_ROOT_DIR = Path(__file__).resolve().parent
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
+
 import altair as alt
 import numpy as np
 import pandas as pd
@@ -306,7 +311,7 @@ horizon_selected = st.sidebar.radio(
     format_func=lambda h: f"{h}h Ahead",
     horizontal=True,
 )
-st.sidebar.caption(f"Used when calculating the air alert risk level for the upcoming hours.")
+st.sidebar.caption(f"Period used when calculating the air alert risk level for the upcoming hours.")
 
 st.sidebar.divider()
 
@@ -542,6 +547,7 @@ if selected_target != "ALL_UKRAINE":
     # TAB 1: CIVIL SAFETY & MEETING PLANNER
     # --------------------------------------------------------------------------
     with tab_safety:
+        st.caption(f"Baseline operational civil safety indicators for {reg_info.name_en} over the selected {num_days_selected}-day window.")
         # Top KPI Metric Strip
         m1, m2, m3, m4, m5 = st.columns(5)
         with m1:
@@ -589,6 +595,10 @@ if selected_target != "ALL_UKRAINE":
 
         # CITIZEN SAFE WINDOW & MEETING PLANNER
         st.subheader("Activity & Meeting Safety Assessment")
+        st.caption(
+            "Civilian schedule risk planner. Select your intended schedule parameters below to evaluate "
+            "historical siren probability and receive an empirical safety score with recommended alternative windows."
+        )
 
         col_p1, col_p2, col_p3 = st.columns([1.2, 1.2, 1.0])
         with col_p1:
@@ -634,16 +644,21 @@ if selected_target != "ALL_UKRAINE":
         st.write("")
 
         # DURATION EXPECTATION CURVE
+        st.subheader("Siren Duration Expectations")
+        st.caption(
+            f"Empirical survival distribution of historical sirens in {reg_info.name_en}. "
+            "Estimates how quickly an active siren is resolved, helping determine whether to wait out an alert or reschedule."
+        )
         col_cdf1, col_cdf2 = st.columns([1.1, 1.0])
         with col_cdf1:
-            st.subheader("Duration Distribution")
-            st.markdown(f"- **25% cleared:** under **{cdf_stats['p25_min']:.0f} mins**")
-            st.markdown(f"- **50% (Median):** under **{cdf_stats['p50_min']:.0f} mins**")
-            st.markdown(f"- **75% cleared:** under **{cdf_stats['p75_min']:.0f} mins**")
-            st.markdown(f"- **90% cleared:** under **{cdf_stats['p90_min']:.0f} mins**")
+            st.markdown("**Duration Percentiles:**")
+            st.markdown(f"- **Fast Intercept (25%):** Cleared in under **{cdf_stats['p25_min']:.0f} mins**")
+            st.markdown(f"- **Typical Alert (50% Median):** Cleared in under **{cdf_stats['p50_min']:.0f} mins**")
+            st.markdown(f"- **Extended Sortie (75%):** Cleared in under **{cdf_stats['p75_min']:.0f} mins**")
+            st.markdown(f"- **Severe Barrage (90%):** Lasts up to **{cdf_stats['p90_min']:.0f} mins**")
 
         with col_cdf2:
-            st.subheader("All-Clear Milestones")
+            st.markdown("**Cumulative All-Clear Probability by Elapsed Time:**")
             st.progress(cdf_stats["prob_clear_30m"], text=f"Within 30 min: {cdf_stats['prob_clear_30m']:.0%}")
             st.progress(cdf_stats["prob_clear_60m"], text=f"Within 1 hour: {cdf_stats['prob_clear_60m']:.0%}")
             st.progress(cdf_stats["prob_clear_120m"], text=f"Within 2 hours: {cdf_stats['prob_clear_120m']:.0%}")
@@ -676,12 +691,16 @@ if selected_target != "ALL_UKRAINE":
                 x="m:Q", y=alt.value(80), text="label:N"
             )
             st.altair_chart(cdf_chart + rules + text, use_container_width=True)
+            st.caption("Cumulative Distribution Function (CDF): Probability of alert termination by elapsed duration.")
 
         st.divider()
 
         # GOVERNMENT THREAT LEVEL DIFFERENTIATION SECTION
         st.subheader("Government Threat Classification")
-        st.caption("Official differentiation between Yellow Alerts (drones/reconnaissance) and Red Alerts (missile/strike hazards).")
+        st.caption(
+            "Official Ukrainian air defense categorization enacted in September 2026. "
+            "Yellow denotes aerial reconnaissance and drone vectors (Shahed loitering UAVs), while Red denotes direct missile or ballistic strike threats requiring mandatory shelter."
+        )
 
         if not threat_stats["has_threat_data"]:
             st.info("Historical Interval: Alerts in this period were recorded without red/yellow differentiation.")
@@ -719,7 +738,7 @@ if selected_target != "ALL_UKRAINE":
             threat_hourly_df = get_threat_level_hourly_profile(filtered_raw_df, region_slug=region_slug)
             if not threat_hourly_df.empty and threat_hourly_df["Total Classified"].sum() > 0:
                 st.write("")
-                st.caption(f"Diurnal Strike Vector Profile: Drones (Yellow) vs Missiles (Red)")
+                st.caption(f"Diurnal Strike Vector Profile: 24-hour distribution of loitering drones (Yellow) versus direct missile strikes (Red).")
                 melted_threat = threat_hourly_df.melt(
                     id_vars=["Hour", "Total Classified"],
                     value_vars=["Yellow (Drones)", "Red (Missiles)"],
@@ -752,22 +771,25 @@ if selected_target != "ALL_UKRAINE":
     # --------------------------------------------------------------------------
     with tab_tactics:
         st.subheader("Diurnal Attack Frequency (24×7)")
-        st.caption("Hourly alert probability across the week (Europe/Kyiv).")
+        st.caption(
+            "Heatmap of historical alert probability across all 168 hours of the week (Europe/Kyiv timezone). "
+            "Darker cells highlight recurring tactical attack windows when sirens are statistically most frequent."
+        )
 
-        # Danger & Safe Window Highlight Cards
+        # Danger & Safe Window Highlight Cards (Reverted to previous styling)
         h_col1, h_col2 = st.columns(2)
         with h_col1:
             st.markdown(f"""
-            <div style="background:rgba(69, 10, 10, 0.65); border:1px solid #ef4444; border-radius:10px; padding:14px 16px; min-height:82px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
-                <b>PEAK DANGER WINDOW:</b> Around <b>{windows['peak_hour']}</b> ({windows['peak_hourly_rate']:.0%})<br>
-                <span style="font-size:0.85rem; color:#fca5a5;">Highest alert risk day: <b>{windows['peak_day']}</b> ({windows['peak_day_rate']:.0%})</span>
+            <div style="background:#450a0a; border:1px solid #ef4444; border-radius:8px; padding:12px 16px;">
+                <b>PEAK DANGER WINDOW:</b> Around <b>{windows['peak_hour']}</b> ({windows['peak_hourly_rate']:.0%} threat rate)<br>
+                <span style="font-size:0.85rem; color:#fca5a5;">Highest risk day: <b>{windows['peak_day']}</b> ({windows['peak_day_rate']:.0%} daily average)</span>
             </div>
             """, unsafe_allow_html=True)
         with h_col2:
             st.markdown(f"""
-            <div style="background:rgba(6, 78, 59, 0.65); border:1px solid #10b981; border-radius:10px; padding:14px 16px; min-height:82px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
-                <b>STATISTICAL CALM WINDOW:</b> Around <b>{windows['safe_hour']}</b> ({windows['safe_hourly_rate']:.0%})<br>
-                <span style="font-size:0.85rem; color:#6ee7b7;">Statistically lowest alert probability during the week.</span>
+            <div style="background:#064e3b; border:1px solid #10b981; border-radius:8px; padding:12px 16px;">
+                <b>STATISTICAL CALM WINDOW:</b> Around <b>{windows['safe_hour']}</b> ({windows['safe_hourly_rate']:.0%} threat rate)<br>
+                <span style="font-size:0.85rem; color:#6ee7b7;">Statistically lowest probability of alerts throughout the week in this period.</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -780,6 +802,9 @@ if selected_target != "ALL_UKRAINE":
         col_dow, col_dur = st.columns([1.3, 1.0])
         with col_dow:
             st.subheader("Day of Week Profile")
+            st.caption(
+                "Aggregated weekday siren volume and shelter duration. Bars indicate average daily hours spent in shelters; the trendline tracks average alert activations."
+            )
             dow_df = get_day_of_week_profile(filtered_raw_df, filtered_grid_df, region_slug=region_slug).reset_index()
             # Layered Altair chart: bar for Active Hours / Day and line for Average Alerts / Day
             bar_c = alt.Chart(dow_df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3, color="rgba(56, 189, 248, 0.45)").encode(
@@ -801,6 +826,9 @@ if selected_target != "ALL_UKRAINE":
             )
         with col_dur:
             st.subheader("Duration Spectrum")
+            st.caption(
+                "Distribution of siren lengths: short tactical alarms (<30m), medium intercepts (30m-2h), and protracted drone swarms (>2h)."
+            )
             st.progress(spectrum["pct_short"], text=f"<30m: {spectrum['pct_short']:.0%}")
             st.progress(spectrum["pct_moderate"], text=f"30m-2h: {spectrum['pct_moderate']:.0%}")
             st.progress(spectrum["pct_extended"], text=f">2h: {spectrum['pct_extended']:.0%}")
@@ -812,6 +840,9 @@ if selected_target != "ALL_UKRAINE":
 
         # LONGITUDINAL WARTIME SHIFT (2022 to 2026)
         st.subheader("Wartime Evolution by Year")
+        st.caption(
+            "Multi-year progression of strike patterns in this region, demonstrating shifts in daily alert frequency, alarm duration, and nighttime attack concentration since 2022."
+        )
         if not evolution_df.empty:
             st.dataframe(
                 evolution_df,
@@ -849,7 +880,9 @@ if selected_target != "ALL_UKRAINE":
     # --------------------------------------------------------------------------
     with tab_hromada:
         st.subheader("Territorial Communities (Hromadas)")
-        st.caption("Distribution of localized versus oblast-wide alerts across communities.")
+        st.caption(
+            "Granular breakdown of sirens across administrative communities. Differentiates between targeted local sirens affecting individual hromadas versus oblast-wide sirens triggered by strategic missile or aviation threats."
+        )
 
         if not hromada_stats["has_differentiation"]:
             st.info("Historical Period: Alerts for this region were issued oblast-wide without per-community localization.")
@@ -884,7 +917,7 @@ if selected_target != "ALL_UKRAINE":
             top_hromadas = summary_view[summary_view["Localized Alerts"] > 0].head(8)
             if not top_hromadas.empty:
                 st.write("")
-                st.caption("Top targeted communities by localized sirens:")
+                st.caption("Top targeted communities by localized sirens (indicating front-line or tactical engagement zones):")
                 hromada_chart = (
                     alt.Chart(top_hromadas)
                     .mark_bar(cornerRadiusTopRight=3, cornerRadiusBottomRight=3, color="rgba(56, 189, 248, 0.75)")
@@ -914,6 +947,9 @@ if selected_target != "ALL_UKRAINE":
     # --------------------------------------------------------------------------
     with tab_ai:
         st.subheader("Predictive Horizon Forecast")
+        st.caption(
+            "Machine learning lookahead probabilities for siren activation over forward 1-hour, 2-hour, and 3-hour horizons, based on temporal climatology and recent operational activity."
+        )
 
         if filtered_feat_df is not None:
             latest_ts = filtered_feat_df["timestamp"].max()
@@ -942,7 +978,9 @@ if selected_target != "ALL_UKRAINE":
         st.divider()
 
         st.subheader("Benchmark Evaluation Matrix")
-        st.caption("Out-of-sample evaluation on chronological holdout set.")
+        st.caption(
+            "Out-of-sample evaluation on chronological holdout set, comparing baseline models (Persistent, Hourly Climatology, Day-of-Week Climatology) across Brier Score, ROC AUC, Precision, and Recall."
+        )
         if bench_df is not None:
             st.dataframe(bench_df, use_container_width=True, hide_index=True)
         else:
@@ -953,8 +991,8 @@ if selected_target != "ALL_UKRAINE":
 # VIEW B: ALL UKRAINE (NATIONAL OVERVIEW)
 # ==============================================================================
 else:
-    st.title("National Situation Room")
-    st.caption(f"All 25 Regions · {sel_start_date} to {sel_end_date} ({num_days_selected} days)")
+    st.title("National Situation")
+    # st.caption(f"All 25 Regions · {sel_start_date} to {sel_end_date} ({num_days_selected} days)")
 
     # Pre-calculate active_map and prob_map for national metrics & regional grid
     if filtered_feat_df is not None:
@@ -1028,8 +1066,8 @@ else:
     with n4:
         st.markdown(f"""
         <div class="kpi-card">
-            <div class="kpi-title">MEDIAN DURATION</div>
-            <div class="kpi-value">{int(nat_spectrum['median_min'])} min</div>
+            <div class="kpi-title">MEAN DURATION</div>
+            <div class="kpi-value">{int(nat_spectrum['mean_min'])} min</div>
             <div class="kpi-sub">{nat_spectrum['pct_short']:.0%} short / {nat_spectrum['pct_extended']:.0%} swarms</div>
         </div>
         """, unsafe_allow_html=True)
@@ -1045,9 +1083,26 @@ else:
     st.divider()
 
     # REGIONAL DANGER GRID (QUICK DIRECT ACCESS TO ALL 25 OBLASTS)
-    st.subheader("Regional Threat Matrix")
+    # st.subheader("Regional Threat")
 
     if filtered_grid_df is not None:
+        # Precompute duration metrics across all regions in a single vectorized pass
+        if not filtered_raw_df.empty:
+            raw_with_dur = filtered_raw_df.copy()
+            dur_mins = (
+                pd.to_datetime(raw_with_dur["finished_at"], utc=True) - pd.to_datetime(raw_with_dur["started_at"], utc=True)
+            ).dt.total_seconds() / 60.0
+            raw_with_dur["duration_min"] = dur_mins
+            raw_with_dur["duration_hours"] = dur_mins / 60.0
+
+            agg_by_region = raw_with_dur.groupby("region_slug").agg(
+                total_hours=("duration_hours", "sum"),
+                mean_duration_min=("duration_min", "mean"),
+                alert_count=("duration_min", "count"),
+            ).to_dict("index")
+        else:
+            agg_by_region = {}
+
         table_rows = []
         for slug in ALL_REGION_SLUGS:
             info = all_regions_dict[slug]
@@ -1056,6 +1111,10 @@ else:
 
             reg_spectrum = get_duration_spectrum(filtered_raw_df, region_slug=slug)
             reg_threat = get_threat_level_stats(filtered_raw_df, region_slug=slug)
+            reg_agg = agg_by_region.get(slug, {"total_hours": 0.0, "mean_duration_min": 0.0, "alert_count": 0})
+            total_hours = float(reg_agg["total_hours"])
+            mean_min = float(reg_agg["mean_duration_min"])
+            alert_count = int(reg_agg["alert_count"])
 
             has_unspec = reg_threat["unspecified_count"] > 0
             if reg_threat["has_threat_data"]:
@@ -1073,31 +1132,144 @@ else:
                 f"{horizon_selected}h Ahead Risk": f"{prob:.0%}",
                 "Alert Risk Tier": "High" if prob >= 0.6 else ("Moderate" if prob >= 0.35 else "Low"),
                 "Risk Tier": "High" if prob >= 0.6 else ("Moderate" if prob >= 0.35 else "Low"),
+                "Total Alert Hours": round(total_hours, 1),
+                "Total Alert Hours Formatted": f"{total_hours:,.1f} hrs",
+                "Average Alert Time": f"{mean_min:.0f} mins",
+                "Mean Alert Time": f"{mean_min:.0f} mins",
+                "Alerts Count": f"{alert_count:,}",
                 "Yellow (Drones) %": yellow_pct_str,
                 "Red (Missiles) %": red_pct_str,
                 "Typical Duration": f"{int(reg_spectrum['median_min'])} mins",
                 "Short (<30m) %": f"{reg_spectrum['pct_short']:.0%}",
                 "Swarm (>2h) %": f"{reg_spectrum['pct_extended']:.0%}",
                 "_prob": prob,
+                "_total_hours": total_hours,
+                "_mean_min": mean_min,
             }
             if not is_vadimkin_mode:
                 row_dict["Current Status"] = "SIREN ACTIVE" if is_active else "CLEAR"
 
             table_rows.append(row_dict)
 
-        # INTERACTIVE SVG MAP OF UKRAINE (BIDIRECTIONAL COMPONENT)
-        clicked_slug = render_ukraine_svg_map(
-            table_rows,
-            is_vadimkin_mode=is_vadimkin_mode,
-            horizon_hours=horizon_selected,
-        )
-        if clicked_slug and clicked_slug in ALL_REGION_SLUGS:
-            st.session_state["selected_target"] = clicked_slug
-            st.query_params["region"] = clicked_slug
-            st.rerun()
+        # ----------------------------------------------------------------------
+        # GEOGRAPHIC MAP & TRACKED OBLAST BURDEN (SIDE-BY-SIDE LAYOUT)
+        # ----------------------------------------------------------------------
+        st.subheader("Geographic Alert Risk & Tracked Oblasts")
+        st.caption("Interactive territorial map alongside tracked oblast cumulative siren downtime and average alert time metrics.")
 
-        st.write("")
-        st.caption("Click any region on the map or table to inspect its detailed workspace.")
+        col_map, col_list = st.columns([1.35, 1.0], gap="medium")
+
+        with col_map:
+            # INTERACTIVE SVG MAP OF UKRAINE (BIDIRECTIONAL COMPONENT)
+            clicked_slug = render_ukraine_svg_map(
+                table_rows,
+                is_vadimkin_mode=is_vadimkin_mode,
+                horizon_hours=horizon_selected,
+            )
+            if clicked_slug and clicked_slug in ALL_REGION_SLUGS:
+                st.session_state["selected_target"] = clicked_slug
+                st.query_params["region"] = clicked_slug
+                st.rerun()
+
+            st.caption("Click any region on the map or in the list to inspect its detailed workspace.")
+
+        with col_list:
+            max_hours = max((r["_total_hours"] for r in table_rows), default=0.0)
+            max_region = next((r["Oblast (EN)"] for r in table_rows if r["_total_hours"] == max_hours), "N/A")
+            nat_avg_dur = np.mean([r["_mean_min"] for r in table_rows if r["_mean_min"] > 0]) if table_rows else 0.0
+
+            # st.markdown("##### Tracked Oblasts Alert Burden")
+            c_kpi1, c_kpi2 = st.columns(2)
+            with c_kpi1:
+                st.markdown(f"""
+                <div class="kpi-card" style="height:76px; min-height:76px; padding:6px 10px; margin-bottom:12px;">
+                    <div class="kpi-title">MAX TOTAL ALERT TIME</div>
+                    <div class="kpi-value" style="font-size:1.15rem;">{max_hours:,.0f} hrs</div>
+                    <div class="kpi-sub">{max_region}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with c_kpi2:
+                st.markdown(f"""
+                <div class="kpi-card" style="height:76px; min-height:76px; padding:6px 10px; margin-bottom:12px;">
+                    <div class="kpi-title">MEAN ALERT DURATION</div>
+                    <div class="kpi-value" style="font-size:1.15rem;">{nat_avg_dur:.0f} mins</div>
+                    <div class="kpi-sub">Across 25 oblasts</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            ranking_df = pd.DataFrame(table_rows).sort_values(by="_total_hours", ascending=False).reset_index(drop=True)
+            list_cols = [
+                "Oblast (EN)",
+                "Total Alert Hours",
+                "Average Alert Time",
+                "Alert Risk Tier",
+            ]
+
+            # Color table cells by risk tier and status
+            def style_risk_cells(val: str) -> str:
+                if val == "High":
+                    return "background-color: rgba(239, 68, 68, 0.35); color: #fca5a5; font-weight: 600;"
+                elif val == "Moderate":
+                    return "background-color: rgba(245, 158, 11, 0.35); color: #fcd34d; font-weight: 600;"
+                elif val == "Low":
+                    return "background-color: rgba(16, 185, 129, 0.30); color: #6ee7b7; font-weight: 600;"
+                return ""
+
+            styled_ranking = ranking_df[list_cols].style.map(style_risk_cells, subset=["Alert Risk Tier"])
+
+            list_column_config = {
+                "Oblast (EN)": st.column_config.TextColumn("Tracked Oblast", width="medium"),
+                "Total Alert Hours": st.column_config.ProgressColumn(
+                    "Total Alert Hours",
+                    help="Cumulative air raid siren hours in the selected period",
+                    format="%.1f hrs",
+                    min_value=0,
+                    max_value=float(max_hours) if max_hours > 0 else 100,
+                ),
+                "Average Alert Time": st.column_config.TextColumn(
+                    "Mean Alert Time",
+                    help="Average duration per air raid siren",
+                    width="small",
+                ),
+                "Alert Risk Tier": st.column_config.TextColumn(
+                    "Alert Risk",
+                    help="Forecasted alert risk tier",
+                    width="small",
+                ),
+            }
+
+            list_event = st.dataframe(
+                styled_ranking,
+                column_config=list_column_config,
+                use_container_width=True,
+                height=490,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row",
+                key="main_page_oblast_list",
+            )
+
+            if (
+                list_event
+                and hasattr(list_event, "selection")
+                and list_event.selection
+                and list_event.selection.get("rows")
+            ):
+                sel_idx = list_event.selection["rows"][0]
+                if 0 <= sel_idx < len(ranking_df):
+                    selected_slug = ranking_df.iloc[sel_idx]["region_slug"]
+                    if selected_slug in ALL_REGION_SLUGS:
+                        st.session_state["selected_target"] = selected_slug
+                        st.query_params["region"] = selected_slug
+                        st.rerun()
+
+        st.divider()
+
+        # ----------------------------------------------------------------------
+        # COMPREHENSIVE REGIONAL THREAT MATRIX
+        # ----------------------------------------------------------------------
+        st.subheader("Regional Threat Matrix")
+        st.caption("Comprehensive tactical breakdown across all 25 regions, including threat classifications, duration spectrums, and live operational status.")
 
         summary_df = pd.DataFrame(table_rows).sort_values(by="_prob", ascending=False).reset_index(drop=True)
         cols_to_show = ["Oblast (EN)", "Область (UK)"]
@@ -1106,22 +1278,14 @@ else:
         cols_to_show.extend([
             f"{horizon_selected}h Ahead Alert Risk",
             "Alert Risk Tier",
+            "Total Alert Hours",
+            "Average Alert Time",
             "Yellow (Drones) %",
             "Red (Missiles) %",
             "Typical Duration",
             "Short (<30m) %",
             "Swarm (>2h) %",
         ])
-
-        # Color table cells by risk tier and status
-        def style_risk_cells(val: str) -> str:
-            if val == "High":
-                return "background-color: rgba(239, 68, 68, 0.35); color: #fca5a5; font-weight: 600;"
-            elif val == "Moderate":
-                return "background-color: rgba(245, 158, 11, 0.35); color: #fcd34d; font-weight: 600;"
-            elif val == "Low":
-                return "background-color: rgba(16, 185, 129, 0.30); color: #6ee7b7; font-weight: 600;"
-            return ""
 
         def style_status_cells(val: str) -> str:
             if "ACTIVE" in str(val):
@@ -1135,8 +1299,14 @@ else:
         if not is_vadimkin_mode and "Current Status" in cols_to_show:
             styled_df = styled_df.map(style_status_cells, subset=["Current Status"])
 
+        table_column_config = {
+            "Total Alert Hours": st.column_config.NumberColumn("Total Alert Hours", format="%.1f hrs"),
+            "Average Alert Time": st.column_config.TextColumn("Mean Alert Time"),
+        }
+
         table_event = st.dataframe(
             styled_df,
+            column_config=table_column_config,
             use_container_width=True,
             height=460,
             hide_index=True,
