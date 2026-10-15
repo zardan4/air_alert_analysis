@@ -346,7 +346,7 @@ st.sidebar.divider()
 min_avail_date = pd.to_datetime(grid_df["timestamp"]).min().date()
 max_avail_date = pd.to_datetime(grid_df["timestamp"]).max().date()
 
-interval_mode = st.sidebar.radio(
+interval_mode = st.sidebar.selectbox(
     "Time Window:",
     [
         "Full History (2022-2026)",
@@ -837,20 +837,51 @@ if selected_target != "ALL_UKRAINE":
             bar_c = alt.Chart(dow_df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3, color="rgba(56, 189, 248, 0.45)").encode(
                 x=alt.X("Day:O", sort=DAY_NAMES, title="Day of Week"),
                 y=alt.Y("Active Hours / Day:Q", title="Daily Shelter Hours"),
-                tooltip=["Day:O", "Active Hours / Day:Q", "Average Alerts / Day:Q", "Average Duration (mins):Q"],
+                tooltip=[
+                    alt.Tooltip("Day:O", title="Day of Week"),
+                    alt.Tooltip("Active Hours / Day:Q", title="Daily Shelter Hours", format=".1f"),
+                    alt.Tooltip("Average Alerts / Day:Q", title="Average Alerts", format=".1f"),
+                    alt.Tooltip("Average Duration (mins):Q", title="Average Duration (mins)", format=".0f"),
+                ],
             )
             line_c = alt.Chart(dow_df).mark_line(point=True, color="#f59e0b", strokeWidth=2.5).encode(
                 x=alt.X("Day:O", sort=DAY_NAMES),
                 y=alt.Y("Average Alerts / Day:Q", title="Average Alerts per Day"),
-                tooltip=["Day:O", "Active Hours / Day:Q", "Average Alerts / Day:Q", "Average Duration (mins):Q"],
+                tooltip=[
+                    alt.Tooltip("Day:O", title="Day of Week"),
+                    alt.Tooltip("Active Hours / Day:Q", title="Daily Shelter Hours", format=".1f"),
+                    alt.Tooltip("Average Alerts / Day:Q", title="Average Alerts", format=".1f"),
+                    alt.Tooltip("Average Duration (mins):Q", title="Average Duration (mins)", format=".0f"),
+                ],
             )
-            layered_dow = alt.layer(bar_c, line_c).resolve_scale(y="independent").properties(height=220)
+            layered_dow = alt.layer(bar_c, line_c).resolve_scale(y="independent").properties(height=230)
             st.altair_chart(layered_dow, use_container_width=True)
 
-            st.dataframe(
-                dow_df.set_index("Day")[["Average Alerts / Day", "Average Duration (mins)", "Active Hours / Day"]],
-                use_container_width=True,
-            )
+            # High-value operational synthesis: Weekday vs Weekend and Peak Threat Day
+            weekday_mask = dow_df["Day"].isin(["Mon", "Tue", "Wed", "Thu", "Fri"])
+            wkday_hours = float(dow_df[weekday_mask]["Active Hours / Day"].mean()) if not dow_df[weekday_mask].empty else 0.0
+            wkend_hours = float(dow_df[~weekday_mask]["Active Hours / Day"].mean()) if not dow_df[~weekday_mask].empty else 0.0
+            peak_row = dow_df.sort_values(by="Active Hours / Day", ascending=False).iloc[0] if not dow_df.empty else None
+
+            c_dow1, c_dow2 = st.columns(2)
+            with c_dow1:
+                st.markdown(f"""
+                <div class="kpi-card" style="height:78px; min-height:78px; padding:6px 10px;">
+                    <div class="kpi-title">WEEKDAY VS WEEKEND</div>
+                    <div class="kpi-value" style="font-size:1.15rem;">{wkday_hours:.1f}h <span style="font-size:0.75rem; color:#94a3b8; font-weight:400;">wkday</span> · {wkend_hours:.1f}h <span style="font-size:0.75rem; color:#94a3b8; font-weight:400;">wkend</span></div>
+                    <div class="kpi-sub">Average shelter hours per day</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with c_dow2:
+                peak_day_name = str(peak_row["Day"]) if peak_row is not None else "N/A"
+                peak_day_val = float(peak_row["Active Hours / Day"]) if peak_row is not None else 0.0
+                st.markdown(f"""
+                <div class="kpi-card" style="height:78px; min-height:78px; padding:6px 10px;">
+                    <div class="kpi-title">PEAK THREAT DAY</div>
+                    <div class="kpi-value" style="font-size:1.15rem;">{peak_day_name} ({peak_day_val:.1f} hrs)</div>
+                    <div class="kpi-sub">Highest daily sirens burden</div>
+                </div>
+                """, unsafe_allow_html=True)
         with col_dur:
             st.subheader("Duration Spectrum")
             st.caption(
@@ -1198,14 +1229,13 @@ else:
                 st.query_params["region"] = clicked_slug
                 st.rerun()
 
-            st.caption("Click any region on the map or in the list to inspect its detailed workspace.")
+            st.caption("Click any region on the map, use the Quick Inspector on the right, or select an oblast in the sidebar to view its detailed workspace.")
 
         with col_list:
             max_hours = max((r["_total_hours"] for r in table_rows), default=0.0)
             max_region = next((r["Oblast (EN)"] for r in table_rows if r["_total_hours"] == max_hours), "N/A")
             nat_avg_dur = np.mean([r["_mean_min"] for r in table_rows if r["_mean_min"] > 0]) if table_rows else 0.0
 
-            # st.markdown("##### Tracked Oblasts Alert Burden")
             c_kpi1, c_kpi2 = st.columns(2)
             with c_kpi1:
                 st.markdown(f"""
@@ -1225,7 +1255,9 @@ else:
                 """, unsafe_allow_html=True)
 
             ranking_df = pd.DataFrame(table_rows).sort_values(by="_total_hours", ascending=False).reset_index(drop=True)
+            ranking_df["#"] = range(1, len(ranking_df) + 1)
             list_cols = [
+                "#",
                 "Oblast (EN)",
                 "Total Alert Hours",
                 "Average Alert Time",
@@ -1245,6 +1277,7 @@ else:
             styled_ranking = ranking_df[list_cols].style.map(style_risk_cells, subset=["Alert Risk Tier"])
 
             list_column_config = {
+                "#": st.column_config.NumberColumn("#", width="small"),
                 "Oblast (EN)": st.column_config.TextColumn("Tracked Oblast", width="medium"),
                 "Total Alert Hours": st.column_config.ProgressColumn(
                     "Total Alert Hours",
@@ -1254,7 +1287,7 @@ else:
                     max_value=float(max_hours) if max_hours > 0 else 100,
                 ),
                 "Average Alert Time": st.column_config.TextColumn(
-                    "Mean Alert Time",
+                    "Mean Duration",
                     help="Average duration per air raid siren",
                     width="small",
                 ),
@@ -1265,30 +1298,34 @@ else:
                 ),
             }
 
-            list_event = st.dataframe(
+            st.dataframe(
                 styled_ranking,
                 column_config=list_column_config,
                 use_container_width=True,
-                height=490,
+                height=430,
                 hide_index=True,
-                on_select="rerun",
-                selection_mode="single-row",
                 key="main_page_oblast_list",
             )
 
-            if (
-                list_event
-                and hasattr(list_event, "selection")
-                and list_event.selection
-                and list_event.selection.get("rows")
-            ):
-                sel_idx = list_event.selection["rows"][0]
-                if 0 <= sel_idx < len(ranking_df):
-                    selected_slug = ranking_df.iloc[sel_idx]["region_slug"]
-                    if selected_slug in ALL_REGION_SLUGS:
-                        st.session_state["selected_target"] = selected_slug
-                        st.query_params["region"] = selected_slug
-                        st.rerun()
+            # Direct Region Quick Inspector
+            def handle_quick_inspect():
+                slug = st.session_state.get("quick_inspect_dropdown")
+                if slug and slug in ALL_REGION_SLUGS:
+                    st.session_state["selected_target"] = slug
+                    st.session_state["region_selector_key"] = slug
+                    st.query_params["region"] = slug
+
+            q_col1, q_col2 = st.columns([2.2, 1.0])
+            with q_col1:
+                st.selectbox(
+                    "Select region workspace to inspect:",
+                    options=ALL_REGION_SLUGS,
+                    format_func=lambda s: f"{all_regions_dict[s].name_en} ({all_regions_dict[s].name_uk})",
+                    label_visibility="collapsed",
+                    key="quick_inspect_dropdown",
+                )
+            with q_col2:
+                st.button("Inspect", key="btn_quick_inspect_action", on_click=handle_quick_inspect, use_container_width=True)
 
         st.divider()
 
@@ -1296,7 +1333,7 @@ else:
         # COMPREHENSIVE REGIONAL THREAT MATRIX
         # ----------------------------------------------------------------------
         st.subheader("Regional Threat Matrix")
-        st.caption("Comprehensive tactical breakdown across all 25 regions, including threat classifications, duration spectrums, and live operational status.")
+        st.caption("Tactical breakdown across all 25 regions: threat classifications, duration spectrums, and live operational status.")
 
         summary_df = pd.DataFrame(table_rows).sort_values(by="_prob", ascending=False).reset_index(drop=True)
         cols_to_show = ["Oblast (EN)", "Область (UK)"]
@@ -1305,8 +1342,6 @@ else:
         cols_to_show.extend([
             f"{horizon_selected}h Ahead Alert Risk",
             "Alert Risk Tier",
-            "Total Alert Hours",
-            "Average Alert Time",
             "Yellow (Drones) %",
             "Red (Missiles) %",
             "Typical Duration",
@@ -1327,34 +1362,18 @@ else:
             styled_df = styled_df.map(style_status_cells, subset=["Current Status"])
 
         table_column_config = {
-            "Total Alert Hours": st.column_config.NumberColumn("Total Alert Hours", format="%.1f hrs"),
-            "Average Alert Time": st.column_config.TextColumn("Mean Alert Time"),
+            f"{horizon_selected}h Ahead Alert Risk": st.column_config.TextColumn(f"{horizon_selected}h Ahead Alert Risk"),
+            "Typical Duration": st.column_config.TextColumn("Typical Duration", help="Median siren duration"),
         }
 
-        table_event = st.dataframe(
+        st.dataframe(
             styled_df,
             column_config=table_column_config,
             use_container_width=True,
             height=460,
             hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
             key="national_matrix_table",
         )
-
-        if (
-            table_event
-            and hasattr(table_event, "selection")
-            and table_event.selection
-            and table_event.selection.get("rows")
-        ):
-            selected_row_idx = table_event.selection["rows"][0]
-            if 0 <= selected_row_idx < len(summary_df):
-                row_slug = summary_df.iloc[selected_row_idx]["region_slug"]
-                if row_slug in ALL_REGION_SLUGS:
-                    st.session_state["selected_target"] = row_slug
-                    st.query_params["region"] = row_slug
-                    st.rerun()
 
     st.divider()
 
